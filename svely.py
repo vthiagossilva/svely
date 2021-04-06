@@ -16,7 +16,6 @@ class Svely:
                  **kwargs
                  ):
         """
-
         :param database: Nome do banco de dados
         :param user: Usuário
         :param password: Senha do usuário
@@ -80,11 +79,9 @@ class Svely:
                      unique: bool = False
                      ) -> Union[list, dict, Any, None]:
         """
-
         :param sql: Parte do comando APÓS a diretiva SELECT. Ex.: "* FROM table;"
         :param entity: Opcional. Construtor da instância que deva ser retornado. O padrão é uma lista de dicionários
         :param unique: Opcional. Indica que deve ser retornado apenas um dicionário ou instância personalizada
-
         :return: Se unique, retorna um dicionário ou a instância da classe indicada. Se não, retorna uma lista de
         dicionários ou de instâncias da classe indicada.
         """
@@ -123,17 +120,15 @@ class Svely:
             VALUES ({",".join(_values)});"""
 
         await cursor.execute(sql)
+
         if commit:
             await self._database.commit()
-
-            if get_id:
-                await cursor.execute("SELECT LAST_INSERT_ID() as id;")
-                new_id = (await cursor.fetchone())["id"]
-
-                await self.close()
-                return new_id
-
             await self.close()
+
+        if get_id:
+            await cursor.execute("SELECT LAST_INSERT_ID() as id;")
+            new_id = (await cursor.fetchone())["id"]
+            return new_id
         return None
 
     async def insert_many(self,
@@ -218,7 +213,7 @@ class Svely:
 
     async def is_empty(self, table: str, primary_key: str = None, where: str = None) -> bool:
         cursor = await self.get_cursor()
-        await cursor.execute(f"SELECT {primary_key or '*'} FROM {table}{f'WHERE {where}' if where else ''} LIMIT 1")
+        await cursor.execute(f"SELECT {primary_key or '*'} FROM {table}{f' WHERE {where}' if where else ''} LIMIT 1")
         r = (await cursor.fetchone()) is None
         return r
 
@@ -237,7 +232,6 @@ def _get_data(data: Union[dict, Any, list], f) -> (list, list):
 
     _fields = []
     _data = []
-
     if not isinstance(data, list):
         if not isinstance(data, dict):
             data = data.__dict__
@@ -246,7 +240,7 @@ def _get_data(data: Union[dict, Any, list], f) -> (list, list):
             if par[1] is not None:
                 _fields.append(par[0])
                 new_value = (f or converter)(par[1])
-                _data.append(f"'{new_value}'")
+                _data.append(f"'{new_value}'" if new_value != "__NULL__" else "NULL")
         return _fields, _data
 
     for item in data:
@@ -259,6 +253,6 @@ def _get_data(data: Union[dict, Any, list], f) -> (list, list):
                     _fields.append(par[0])
 
                 new_value = converter(par[1])
-                value.append(f"'{new_value}'")
+                value.append(f"'{new_value}'" if new_value != "__NULL__" else "NULL")
         _data.append(value)
     return _fields, _data
