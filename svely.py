@@ -121,15 +121,17 @@ class Svely:
 
         await cursor.execute(sql)
 
+        result = None
+        if get_id:
+            await cursor.execute("SELECT LAST_INSERT_ID() as id;")
+            new_id = (await cursor.fetchone())["id"]
+            result = new_id
+
         if commit:
             await self._database.commit()
             await self.close()
 
-        if get_id:
-            await cursor.execute("SELECT LAST_INSERT_ID() as id;")
-            new_id = (await cursor.fetchone())["id"]
-            return new_id
-        return None
+        return result
 
     async def insert_many(self,
                           table: str,
@@ -147,7 +149,7 @@ class Svely:
                 INSERT INTO {table}
                     ({','.join(fields)})
                     VALUES {",".join([f'({",".join(row)})' for row in values])};"""
-
+        print(sql)
         await cursor.execute(sql)
         if commit:
             await self._database.commit()
@@ -228,7 +230,7 @@ def _get_data(data: Union[dict, Any, list], f) -> (list, list):
             return int(o)
         elif isinstance(o, (datetime, date)):
             return o.isoformat()
-        return o.__str__()
+        return o.__str__().replace("'", "\\'")
 
     _fields = []
     _data = []
@@ -238,7 +240,7 @@ def _get_data(data: Union[dict, Any, list], f) -> (list, list):
 
         for par in data.items():
             if par[1] is not None:
-                _fields.append(par[0])
+                _fields.append(f"`{par[0]}`")
                 new_value = (f or converter)(par[1])
                 _data.append(f"'{new_value}'" if new_value != "__NULL__" else "NULL")
         return _fields, _data
@@ -250,7 +252,7 @@ def _get_data(data: Union[dict, Any, list], f) -> (list, list):
         for par in item.items():
             if par[1] is not None:
                 if not len(_data):
-                    _fields.append(par[0])
+                    _fields.append(f"`{par[0]}`")
 
                 new_value = converter(par[1])
                 value.append(f"'{new_value}'" if new_value != "__NULL__" else "NULL")
